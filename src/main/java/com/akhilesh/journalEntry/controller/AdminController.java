@@ -76,8 +76,18 @@ public class AdminController {
     public ResponseEntity<String> updateUser(@PathVariable Long id, @RequestBody User userDetails) {
         User user = userService.findById(id).orElse(null);
         if (user != null) {
-            user.setUsername(userDetails.getUsername());
-            user.setEmail(userDetails.getEmail());
+            if (userDetails.getUsername() != null && !userDetails.getUsername().equals(user.getUsername())) {
+                if (userService.findByUserName(userDetails.getUsername()) != null) {
+                    return ResponseEntity.badRequest().body("Username already taken by another user.");
+                }
+                user.setUsername(userDetails.getUsername());
+            }
+            if (userDetails.getEmail() != null && !userDetails.getEmail().equals(user.getEmail())) {
+                if (userService.findByEmail(userDetails.getEmail()) != null) {
+                    return ResponseEntity.badRequest().body("Email already taken by another user.");
+                }
+                user.setEmail(userDetails.getEmail());
+            }
             userService.saveUser(user);
             logAction("UPDATED_USER", user.getUsername(), "Updated user details for ID: " + id);
             return ResponseEntity.ok("User updated successfully");

@@ -20,6 +20,9 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import com.akhilesh.journalEntry.entity.AuditLog;
+import com.akhilesh.journalEntry.repository.AuditLogRepository;
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/user")
@@ -27,6 +30,9 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private AuditLogRepository auditLogRepository;
 
     @GetMapping("/me")
     public ResponseEntity<User> getCurrentUser() {
@@ -95,15 +101,32 @@ public class UserController {
             }
 
             if (user.getUsername() != null && !user.getUsername().trim().isEmpty()) {
+                if (!user.getUsername().equals(userInDb.getUsername()) && userService.findByUserName(user.getUsername()) != null) {
+                    return ResponseEntity.badRequest().body("Validation Error: Username is already taken.");
+                }
                 userInDb.setUsername(user.getUsername());
             }
             if (user.getPassword() != null && !user.getPassword().trim().isEmpty()) {
                 userInDb.setPassword(passwordEncoder.encode(user.getPassword()));
             }
             if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
+                if (!user.getEmail().equals(userInDb.getEmail()) && userService.findByEmail(user.getEmail()) != null) {
+                    return ResponseEntity.badRequest().body("Validation Error: Email is already taken.");
+                }
                 userInDb.setEmail(user.getEmail());
             }
             userService.saveUser(userInDb);
+
+            // Log the self-update action
+            AuditLog log = AuditLog.builder()
+                    .action("USER_SELF_UPDATE")
+                    .adminUsername(username) // user acts as their own admin here
+                    .targetUsername(userInDb.getUsername())
+                    .details("User updated their own profile")
+                    .timestamp(LocalDateTime.now())
+                    .build();
+            auditLogRepository.save(log);
+
             return ResponseEntity.ok("User updated successfully");
     }
 }

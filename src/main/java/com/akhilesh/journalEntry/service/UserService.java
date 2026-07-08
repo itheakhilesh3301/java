@@ -24,19 +24,25 @@ public class UserService {
     private static final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public boolean saveNewUser(User user){
-        try {
-            user.setPassword(passwordEncoder.encode(user.getPassword()));
-            user.setRoles(Arrays.asList("USER"));
-            userRepo.save(user);
-            return true;
-        } catch (Exception e) {
-            log.error("Failed to save new user: " + e.getMessage());
-            return false;
+        if (userRepo.findByUsername(user.getUsername()) != null) {
+            throw new RuntimeException("Username already exists.");
         }
-
+        if (userRepo.findByEmail(user.getEmail()) != null) {
+            throw new RuntimeException("Email already exists.");
+        }
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        user.setRoles(Arrays.asList("USER"));
+        userRepo.save(user);
+        return true;
     }
 
     public void saveAdmin(User user){
+        if (userRepo.findByUsername(user.getUsername()) != null) {
+            throw new RuntimeException("Username already exists.");
+        }
+        if (userRepo.findByEmail(user.getEmail()) != null) {
+            throw new RuntimeException("Email already exists.");
+        }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         user.setRoles(Arrays.asList("USER", "ADMIN"));
         userRepo.save(user);
@@ -62,6 +68,8 @@ public class UserService {
         return userRepo.findByUsername(userName);
     }
         
-        
+    public User findByEmail(String email) {
+        return userRepo.findByEmail(email);
+    }
     
 }

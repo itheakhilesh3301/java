@@ -22,8 +22,11 @@ import jakarta.validation.Valid;
 
 import com.akhilesh.journalEntry.entity.JournalEntry;
 import com.akhilesh.journalEntry.entity.User;
+import com.akhilesh.journalEntry.entity.AuditLog;
 import com.akhilesh.journalEntry.service.JournalEntryService;
 import com.akhilesh.journalEntry.service.UserService;
+import com.akhilesh.journalEntry.repository.AuditLogRepository;
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/journal")
@@ -33,9 +36,23 @@ public class JournalEntryController {
 
     private final UserService userService;
 
-    JournalEntryController(JournalEntryService journalEntryService, UserService userService) {
+    private final AuditLogRepository auditLogRepository;
+
+    JournalEntryController(JournalEntryService journalEntryService, UserService userService, AuditLogRepository auditLogRepository) {
         this.journalEntryService = journalEntryService;
         this.userService = userService;
+        this.auditLogRepository = auditLogRepository;
+    }
+
+    private void logAction(String action, String username, String details) {
+        AuditLog log = AuditLog.builder()
+                .action(action)
+                .adminUsername(username)
+                .targetUsername(username)
+                .details(details)
+                .timestamp(LocalDateTime.now())
+                .build();
+        auditLogRepository.save(log);
     }
 
     
@@ -60,6 +77,7 @@ public class JournalEntryController {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             String userName = authentication.getName();
             journalEntryService.saveJournalEntry(userName, myEntry);
+            logAction("CREATED_JOURNAL", userName, "Created a new journal entry: " + myEntry.getTitle());
             return ResponseEntity.status(HttpStatus.CREATED).body(myEntry);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
@@ -88,6 +106,7 @@ public class JournalEntryController {
         String userName = authentication.getName();
         boolean removed = journalEntryService.deleteById(id, userName);
         if (removed) {
+            logAction("DELETED_JOURNAL", userName, "Deleted journal entry ID: " + id);
             return ResponseEntity.ok("Entry deleted successfully");
         }
         return ResponseEntity.notFound().build();
@@ -111,7 +130,13 @@ public class JournalEntryController {
             if (newEntry.getContent() != null && !newEntry.getContent().equals("")) {
                 old.setContent(newEntry.getContent());
             }
+            // Tags updating
+            if (newEntry.getTags() != null) {
+                old.setTags(newEntry.getTags());
+            }
+
             journalEntryService.saveEntry(old);
+            logAction("UPDATED_JOURNAL", userName, "Updated journal entry ID: " + id);
             return ResponseEntity.ok(old);
         }
         return ResponseEntity.notFound().build();

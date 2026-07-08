@@ -17,8 +17,18 @@
 
     <!-- Auth Section -->
     <div id="auth-section" class="glass-container active">
-        <h1>Welcome Back</h1>
-        <p>Log in to access your 3D Journal.</p>
+        <h1 id="login-title">Welcome Back</h1>
+        <p id="login-subtitle">Log in to access your 3D Journal.</p>
+        
+        <div class="role-toggle-container">
+            <span class="role-label active" id="label-user">User</span>
+            <label class="switch">
+                <input type="checkbox" id="role-toggle">
+                <span class="slider round"></span>
+            </label>
+            <span class="role-label" id="label-admin">Admin</span>
+        </div>
+
         <form id="login-form">
             <input type="text" id="username" placeholder="Username" required>
             <input type="password" id="password" placeholder="Password" required>
@@ -34,6 +44,7 @@
             <div class="header-actions">
                 <input type="text" id="search-input" placeholder="Search entries...">
                 <button id="btn-new-entry" class="glow-button small">New Entry</button>
+                <button id="btn-profile" class="ghost-button small">Profile</button>
                 <button id="btn-logout" class="ghost-button small">Logout</button>
             </div>
         </header>
@@ -91,8 +102,9 @@
     <!-- New Entry Modal -->
     <div id="modal-overlay" class="modal-overlay">
         <div class="glass-container modal-content">
-            <h2>New Entry</h2>
+            <h2>Journal Entry</h2>
             <form id="entry-form">
+                <input type="hidden" id="entry-id">
                 <input type="text" id="entry-title" placeholder="Title" required>
                 <textarea id="entry-content" rows="5" placeholder="Write your thoughts..." required></textarea>
                 <input type="text" id="entry-tags" placeholder="Tags (comma separated)">
@@ -102,6 +114,24 @@
                 </div>
             </form>
             <div id="entry-error" class="error-msg"></div>
+        </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div id="profile-modal-overlay" class="modal-overlay">
+        <div class="glass-container modal-content">
+            <h2>Edit Profile</h2>
+            <form id="profile-form">
+                <input type="text" id="profile-username" placeholder="New Username">
+                <input type="email" id="profile-email" placeholder="New Email">
+                <input type="password" id="profile-password" placeholder="New Password">
+                <div class="modal-actions">
+                    <button type="button" id="btn-profile-cancel" class="ghost-button">Cancel</button>
+                    <button type="submit" class="glow-button">Update Profile</button>
+                </div>
+            </form>
+            <div id="profile-error" class="error-msg"></div>
+            <div id="profile-success" style="color: #3fb950; margin-top: 1rem; font-size: 0.9rem;"></div>
         </div>
     </div>
 

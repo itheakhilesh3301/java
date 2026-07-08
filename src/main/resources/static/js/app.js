@@ -3,6 +3,11 @@ const dashboardSection = document.getElementById('dashboard-section');
 const adminDashboardSection = document.getElementById('admin-dashboard-section');
 const loginForm = document.getElementById('login-form');
 const authError = document.getElementById('auth-error');
+const roleToggle = document.getElementById('role-toggle');
+const labelUser = document.getElementById('label-user');
+const labelAdmin = document.getElementById('label-admin');
+const loginTitle = document.getElementById('login-title');
+const loginSubtitle = document.getElementById('login-subtitle');
 
 const journalGrid = document.getElementById('journal-grid');
 const searchInput = document.getElementById('search-input');
@@ -22,14 +27,37 @@ const btnPrev = document.getElementById('btn-prev');
 const btnNext = document.getElementById('btn-next');
 const pageInfo = document.getElementById('page-info');
 
+const btnProfile = document.getElementById('btn-profile');
+const profileModalOverlay = document.getElementById('profile-modal-overlay');
+const profileForm = document.getElementById('profile-form');
+const btnProfileCancel = document.getElementById('btn-profile-cancel');
+const profileError = document.getElementById('profile-error');
+const profileSuccess = document.getElementById('profile-success');
+
 // State
 let credentials = null;
+let currentUser = null;
 let currentPage = 0;
 let currentKeyword = '';
 const pageSize = 12;
 
 // API Base
 const API_BASE = 'http://localhost:8080';
+
+// Role Toggle Logic
+roleToggle.addEventListener('change', (e) => {
+    if (e.target.checked) {
+        labelAdmin.classList.add('active');
+        labelUser.classList.remove('active');
+        loginTitle.textContent = 'Admin Portal';
+        loginSubtitle.textContent = 'Log in to manage the system.';
+    } else {
+        labelUser.classList.add('active');
+        labelAdmin.classList.remove('active');
+        loginTitle.textContent = 'Welcome Back';
+        loginSubtitle.textContent = 'Log in to access your 3D Journal.';
+    }
+});
 
 // Event Listeners
 loginForm.addEventListener('submit', async (e) => {
@@ -46,13 +74,20 @@ loginForm.addEventListener('submit', async (e) => {
         if (!meRes.ok) throw new Error('Invalid login');
         
         const me = await meRes.json();
+
+        // Enforce toggle constraints BEFORE hiding auth section
+        if (!(me.roles && me.roles.includes('ADMIN')) && roleToggle.checked) {
+            throw new Error('You do not have Admin privileges.');
+        }
+        
+        currentUser = me;
         
         authSection.classList.remove('active');
         document.getElementById('username').value = '';
         document.getElementById('password').value = '';
         authError.textContent = '';
 
-        if (me.roles && me.roles.includes('ADMIN')) {
+        if (me.roles && me.roles.includes('ADMIN') && roleToggle.checked) {
             adminDashboardSection.classList.add('active');
             fetchAdminData();
         } else {
@@ -60,7 +95,8 @@ loginForm.addEventListener('submit', async (e) => {
             fetchJournals(0);
         }
     } catch (err) {
-        authError.textContent = 'Invalid username or password';
+        authSection.classList.add('active');
+        authError.textContent = err.message === 'Invalid login' ? 'Invalid username or password' : err.message;
         credentials = null;
     }
 });
@@ -89,6 +125,7 @@ searchInput.addEventListener('input', (e) => {
 btnNewEntry.addEventListener('click', () => {
     modalOverlay.classList.add('active');
     entryForm.reset();
+    document.getElementById('entry-id').value = '';
     entryError.textContent = '';
 });
 
@@ -104,9 +141,76 @@ btnNext.addEventListener('click', () => {
     fetchJournals(currentPage + 1);
 });
 
-// Create Entry
+// Profile Edit Logic
+btnProfile.addEventListener('click', () => {
+    profileModalOverlay.classList.add('active');
+    document.getElementById('profile-username').value = currentUser.username;
+    document.getElementById('profile-email').value = currentUser.email || '';
+    document.getElementById('profile-password').value = '';
+    profileError.textContent = '';
+    profileSuccess.textContent = '';
+});
+
+btnProfileCancel.addEventListener('click', () => {
+    profileModalOverlay.classList.remove('active');
+});
+
+profileForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newUsername = document.getElementById('profile-username').value;
+    const newEmail = document.getElementById('profile-email').value;
+    const newPassword = document.getElementById('profile-password').value;
+
+    const payload = {};
+    if (newUsername) payload.username = newUsername;
+    if (newEmail) payload.email = newEmail;
+    if (newPassword) payload.password = newPassword;
+
+    try {
+        const response = await fetch(`${API_BASE}/user/${currentUser.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${credentials}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            let errorMsg = 'Failed to update';
+            try {
+                const data = await response.json();
+                errorMsg = Object.values(data).join(' | ');
+            } catch (err) {
+                errorMsg = await response.text() || 'Failed to update';
+            }
+            throw new Error(errorMsg);
+        }
+
+        profileSuccess.textContent = 'Profile updated successfully!';
+        profileError.textContent = '';
+        
+        // Extract old pass if no new pass provided
+        const oldPass = atob(credentials).substring(atob(credentials).indexOf(':') + 1);
+        
+        currentUser.username = newUsername || currentUser.username;
+        currentUser.email = newEmail || currentUser.email;
+        credentials = btoa(`${currentUser.username}:${newPassword || oldPass}`);
+        
+        setTimeout(() => {
+            profileModalOverlay.classList.remove('active');
+        }, 1500);
+
+    } catch (err) {
+        profileError.textContent = err.message;
+        profileSuccess.textContent = '';
+    }
+});
+
+// Create/Update Entry
 entryForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const id = document.getElementById('entry-id').value;
     const title = document.getElementById('entry-title').value;
     const content = document.getElementById('entry-content').value;
     const tagsInput = document.getElementById('entry-tags').value;
@@ -117,10 +221,12 @@ entryForm.addEventListener('submit', async (e) => {
         .map(t => ({ name: t }));
 
     const payload = { title, content, tags };
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `${API_BASE}/journal/${id}` : `${API_BASE}/journal`;
 
     try {
-        const response = await fetch(`${API_BASE}/journal`, {
-            method: 'POST',
+        const response = await fetch(url, {
+            method: method,
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Basic ${credentials}`
@@ -133,7 +239,7 @@ entryForm.addEventListener('submit', async (e) => {
             try {
                 const data = await response.json();
                 errorMsg = Object.values(data).join(' | ');
-            } catch (e) {
+            } catch (err) {
                 errorMsg = await response.text() || 'Failed to save';
             }
             throw new Error(errorMsg);
@@ -186,6 +292,14 @@ function renderJournals(entries) {
 
         const card = document.createElement('div');
         card.className = 'journal-card';
+        card.onclick = () => {
+            modalOverlay.classList.add('active');
+            document.getElementById('entry-id').value = entry.id;
+            document.getElementById('entry-title').value = entry.title;
+            document.getElementById('entry-content').value = entry.content;
+            document.getElementById('entry-tags').value = (entry.tags || []).map(t => t.name).join(', ');
+            entryError.textContent = '';
+        };
         
         // Dynamic 3D mouse move effect
         card.addEventListener('mousemove', handleCardMouseMove);

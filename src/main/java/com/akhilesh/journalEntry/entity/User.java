@@ -22,6 +22,7 @@ public class User {
 
     @NonNull
     @NotBlank(message = "Username cannot be empty")
+    @Column(unique = true)
     private String username;
 
     @NonNull
