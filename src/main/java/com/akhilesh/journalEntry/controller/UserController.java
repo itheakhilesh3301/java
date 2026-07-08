@@ -4,7 +4,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,11 +23,23 @@ public class UserController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     @GetMapping
     public ResponseEntity<User> getUserInfo() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
         User user = userService.findByUserName(username);
+        if (user != null) {
+            return ResponseEntity.ok(user);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<User> getUserById(@PathVariable Long id) {
+        User user = userService.findById(id).orElse(null);
         if (user != null) {
             return ResponseEntity.ok(user);
         }
@@ -41,8 +55,8 @@ public class UserController {
         return ResponseEntity.ok("User created successfully");
     }
 
-    @PutMapping
-    public ResponseEntity<String> updateUser(@RequestBody User user) {
+    @PutMapping("/{id}")
+    public ResponseEntity<String> updateUser(@PathVariable Long id, @RequestBody User user) {
         if (user.getRoles() != null && user.getRoles().stream().anyMatch(role -> role.equalsIgnoreCase("ADMIN"))) {
             return ResponseEntity.badRequest().body("Validation Error: Cannot update role to ADMIN.");
         }
@@ -51,16 +65,30 @@ public class UserController {
         String username = authentication.getName();
         User userInDb = userService.findByUserName(username);
         
-        if (userInDb != null) {
-            userInDb.setUsername(user.getUsername());
-            userInDb.setPassword(user.getPassword());
-            userInDb.setEmail(user.getEmail());
-            
-            // Note: saveNewUser sets the role back to "USER". 
-            // If an Admin updates their profile here, they might lose admin rights unless handled in UserService!
-            userService.saveNewUser(userInDb);
-            return ResponseEntity.ok("User updated successfully");
+        if (userInDb == null || !userInDb.getId().equals(id)) {
+             return ResponseEntity.badRequest().body("Validation Error: You can only update your own profile.");
         }
-        return ResponseEntity.notFound().build();
+            // Validations for same existing values
+            if (user.getUsername() != null && user.getUsername().equals(userInDb.getUsername())) {
+                return ResponseEntity.badRequest().body("Validation Error: The new username matches your current username.");
+            }
+            if (user.getEmail() != null && user.getEmail().equals(userInDb.getEmail())) {
+                return ResponseEntity.badRequest().body("Validation Error: The new email matches your current email.");
+            }
+            if (user.getPassword() != null && passwordEncoder.matches(user.getPassword(), userInDb.getPassword())) {
+                return ResponseEntity.badRequest().body("Validation Error: The new password cannot be the same as your current password.");
+            }
+
+            if (user.getUsername() != null && !user.getUsername().trim().isEmpty()) {
+                userInDb.setUsername(user.getUsername());
+            }
+            if (user.getPassword() != null && !user.getPassword().trim().isEmpty()) {
+                userInDb.setPassword(passwordEncoder.encode(user.getPassword()));
+            }
+            if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
+                userInDb.setEmail(user.getEmail());
+            }
+            userService.saveUser(userInDb);
+            return ResponseEntity.ok("User updated successfully");
     }
 }
