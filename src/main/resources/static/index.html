@@ -44,7 +44,7 @@
             <div class="header-actions">
                 <input type="text" id="search-input" placeholder="Search entries...">
                 <button id="btn-new-entry" class="glow-button small">New Entry</button>
-                <button id="btn-profile" class="ghost-button small">Profile</button>
+                <button id="btn-profile" class="ghost-button small" style="color: #ff4d4f; border-color: rgba(255, 77, 79, 0.3);">Delete Account</button>
                 <button id="btn-logout" class="ghost-button small">Logout</button>
             </div>
         </header>
@@ -104,7 +104,6 @@
         <div class="glass-container modal-content">
             <h2>Journal Entry</h2>
             <form id="entry-form">
-                <input type="hidden" id="entry-id">
                 <input type="text" id="entry-title" placeholder="Title" required>
                 <textarea id="entry-content" rows="5" placeholder="Write your thoughts..." required></textarea>
                 <input type="text" id="entry-tags" placeholder="Tags (comma separated)">
@@ -117,17 +116,15 @@
         </div>
     </div>
 
-    <!-- Profile Modal -->
+    <!-- Delete Account Modal -->
     <div id="profile-modal-overlay" class="modal-overlay">
         <div class="glass-container modal-content">
-            <h2>Edit Profile</h2>
+            <h2>Delete Account</h2>
+            <p style="color: #c9d1d9;">Are you sure you want to delete your account? This will permanently delete all your journals.</p>
             <form id="profile-form">
-                <input type="text" id="profile-username" placeholder="New Username">
-                <input type="email" id="profile-email" placeholder="New Email">
-                <input type="password" id="profile-password" placeholder="New Password">
                 <div class="modal-actions">
                     <button type="button" id="btn-profile-cancel" class="ghost-button">Cancel</button>
-                    <button type="submit" class="glow-button">Update Profile</button>
+                    <button type="submit" class="glow-button" style="background: linear-gradient(90deg, #ff4d4f, #d9363e);">Delete My Account</button>
                 </div>
             </form>
             <div id="profile-error" class="error-msg"></div>

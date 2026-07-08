@@ -76,57 +76,28 @@ public class UserController {
         return ResponseEntity.ok("User created successfully");
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<String> updateUser(@PathVariable Long id, @Valid @RequestBody User user) {
-        if (user.getRoles() != null && user.getRoles().stream().anyMatch(role -> role.equalsIgnoreCase("ADMIN"))) {
-            return ResponseEntity.badRequest().body("Validation Error: Cannot update role to ADMIN.");
-        }
-
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteUser(@PathVariable Long id) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
         User userInDb = userService.findByUserName(username);
         
         if (userInDb == null || !userInDb.getId().equals(id)) {
-             return ResponseEntity.badRequest().body("Validation Error: You can only update your own profile.");
+             return ResponseEntity.badRequest().body("Validation Error: You can only delete your own profile.");
         }
-            // Validations for same existing values
-            if (user.getUsername() != null && user.getUsername().equals(userInDb.getUsername())) {
-                return ResponseEntity.badRequest().body("Validation Error: The new username matches your current username.");
-            }
-            if (user.getEmail() != null && user.getEmail().equals(userInDb.getEmail())) {
-                return ResponseEntity.badRequest().body("Validation Error: The new email matches your current email.");
-            }
-            if (user.getPassword() != null && passwordEncoder.matches(user.getPassword(), userInDb.getPassword())) {
-                return ResponseEntity.badRequest().body("Validation Error: The new password cannot be the same as your current password.");
-            }
+        
+        userService.deleteById(id);
 
-            if (user.getUsername() != null && !user.getUsername().trim().isEmpty()) {
-                if (!user.getUsername().equals(userInDb.getUsername()) && userService.findByUserName(user.getUsername()) != null) {
-                    return ResponseEntity.badRequest().body("Validation Error: Username is already taken.");
-                }
-                userInDb.setUsername(user.getUsername());
-            }
-            if (user.getPassword() != null && !user.getPassword().trim().isEmpty()) {
-                userInDb.setPassword(passwordEncoder.encode(user.getPassword()));
-            }
-            if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
-                if (!user.getEmail().equals(userInDb.getEmail()) && userService.findByEmail(user.getEmail()) != null) {
-                    return ResponseEntity.badRequest().body("Validation Error: Email is already taken.");
-                }
-                userInDb.setEmail(user.getEmail());
-            }
-            userService.saveUser(userInDb);
+        // Log the self-delete action
+        AuditLog log = AuditLog.builder()
+                .action("USER_SELF_DELETE")
+                .adminUsername(username)
+                .targetUsername(username)
+                .details("User deleted their own profile")
+                .timestamp(LocalDateTime.now())
+                .build();
+        auditLogRepository.save(log);
 
-            // Log the self-update action
-            AuditLog log = AuditLog.builder()
-                    .action("USER_SELF_UPDATE")
-                    .adminUsername(username) // user acts as their own admin here
-                    .targetUsername(userInDb.getUsername())
-                    .details("User updated their own profile")
-                    .timestamp(LocalDateTime.now())
-                    .build();
-            auditLogRepository.save(log);
-
-            return ResponseEntity.ok("User updated successfully");
+        return ResponseEntity.ok("User deleted successfully");
     }
 }

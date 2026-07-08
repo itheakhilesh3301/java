@@ -65,6 +65,9 @@ public class AdminController {
     public ResponseEntity<String> deleteUser(@PathVariable Long id) {
         User user = userService.findById(id).orElse(null);
         if (user != null) {
+            if (user.getRoles() != null && user.getRoles().contains("ADMIN")) {
+                return ResponseEntity.badRequest().body("Admins cannot delete other Admins.");
+            }
             userService.deleteById(id);
             logAction("DELETED_USER", user.getUsername(), "Deleted user account with ID: " + id);
             return ResponseEntity.ok("User deleted successfully");
@@ -76,6 +79,9 @@ public class AdminController {
     public ResponseEntity<String> updateUser(@PathVariable Long id, @RequestBody User userDetails) {
         User user = userService.findById(id).orElse(null);
         if (user != null) {
+            if (user.getRoles() != null && user.getRoles().contains("ADMIN")) {
+                return ResponseEntity.badRequest().body("Admins cannot update other Admins.");
+            }
             if (userDetails.getUsername() != null && !userDetails.getUsername().equals(user.getUsername())) {
                 if (userService.findByUserName(userDetails.getUsername()) != null) {
                     return ResponseEntity.badRequest().body("Username already taken by another user.");

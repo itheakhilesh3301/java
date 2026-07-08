@@ -112,33 +112,4 @@ public class JournalEntryController {
         return ResponseEntity.notFound().build();
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<JournalEntry> updateJournalById(@PathVariable Long id, @Valid @RequestBody JournalEntry newEntry) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String userName = authentication.getName();
-        User user = userService.findByUserName(userName);
-        
-        Optional<JournalEntry> optionalEntry = user.getJournalEntries().stream()
-                .filter(x -> x.getId().equals(id))
-                .findFirst();
-
-        if (optionalEntry.isPresent()) {
-            JournalEntry old = optionalEntry.get();
-            if (newEntry.getTitle() != null && !newEntry.getTitle().equals("")) {
-                old.setTitle(newEntry.getTitle());
-            }
-            if (newEntry.getContent() != null && !newEntry.getContent().equals("")) {
-                old.setContent(newEntry.getContent());
-            }
-            // Tags updating
-            if (newEntry.getTags() != null) {
-                old.setTags(newEntry.getTags());
-            }
-
-            journalEntryService.saveEntry(old);
-            logAction("UPDATED_JOURNAL", userName, "Updated journal entry ID: " + id);
-            return ResponseEntity.ok(old);
-        }
-        return ResponseEntity.notFound().build();
-    }
 }

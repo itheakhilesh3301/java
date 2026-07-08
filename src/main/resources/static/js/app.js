@@ -141,12 +141,9 @@ btnNext.addEventListener('click', () => {
     fetchJournals(currentPage + 1);
 });
 
-// Profile Edit Logic
+// Profile Delete Logic
 btnProfile.addEventListener('click', () => {
     profileModalOverlay.classList.add('active');
-    document.getElementById('profile-username').value = currentUser.username;
-    document.getElementById('profile-email').value = currentUser.email || '';
-    document.getElementById('profile-password').value = '';
     profileError.textContent = '';
     profileSuccess.textContent = '';
 });
@@ -157,48 +154,32 @@ btnProfileCancel.addEventListener('click', () => {
 
 profileForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const newUsername = document.getElementById('profile-username').value;
-    const newEmail = document.getElementById('profile-email').value;
-    const newPassword = document.getElementById('profile-password').value;
-
-    const payload = {};
-    if (newUsername) payload.username = newUsername;
-    if (newEmail) payload.email = newEmail;
-    if (newPassword) payload.password = newPassword;
 
     try {
         const response = await fetch(`${API_BASE}/user/${currentUser.id}`, {
-            method: 'PUT',
+            method: 'DELETE',
             headers: {
-                'Content-Type': 'application/json',
                 'Authorization': `Basic ${credentials}`
-            },
-            body: JSON.stringify(payload)
+            }
         });
 
         if (!response.ok) {
-            let errorMsg = 'Failed to update';
+            let errorMsg = 'Failed to delete account';
             try {
                 const data = await response.json();
                 errorMsg = Object.values(data).join(' | ');
             } catch (err) {
-                errorMsg = await response.text() || 'Failed to update';
+                errorMsg = await response.text() || 'Failed to delete account';
             }
             throw new Error(errorMsg);
         }
 
-        profileSuccess.textContent = 'Profile updated successfully!';
+        profileSuccess.textContent = 'Account deleted successfully...';
         profileError.textContent = '';
-        
-        // Extract old pass if no new pass provided
-        const oldPass = atob(credentials).substring(atob(credentials).indexOf(':') + 1);
-        
-        currentUser.username = newUsername || currentUser.username;
-        currentUser.email = newEmail || currentUser.email;
-        credentials = btoa(`${currentUser.username}:${newPassword || oldPass}`);
         
         setTimeout(() => {
             profileModalOverlay.classList.remove('active');
+            logout(); // Log them out immediately
         }, 1500);
 
     } catch (err) {
@@ -207,10 +188,9 @@ profileForm.addEventListener('submit', async (e) => {
     }
 });
 
-// Create/Update Entry
+// Create Entry
 entryForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const id = document.getElementById('entry-id').value;
     const title = document.getElementById('entry-title').value;
     const content = document.getElementById('entry-content').value;
     const tagsInput = document.getElementById('entry-tags').value;
@@ -221,12 +201,10 @@ entryForm.addEventListener('submit', async (e) => {
         .map(t => ({ name: t }));
 
     const payload = { title, content, tags };
-    const method = id ? 'PUT' : 'POST';
-    const url = id ? `${API_BASE}/journal/${id}` : `${API_BASE}/journal`;
 
     try {
-        const response = await fetch(url, {
-            method: method,
+        const response = await fetch(`${API_BASE}/journal`, {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Basic ${credentials}`
@@ -292,14 +270,15 @@ function renderJournals(entries) {
 
         const card = document.createElement('div');
         card.className = 'journal-card';
-        card.onclick = () => {
-            modalOverlay.classList.add('active');
-            document.getElementById('entry-id').value = entry.id;
-            document.getElementById('entry-title').value = entry.title;
-            document.getElementById('entry-content').value = entry.content;
-            document.getElementById('entry-tags').value = (entry.tags || []).map(t => t.name).join(', ');
-            entryError.textContent = '';
-        };
+        card.innerHTML = `
+            <div class="card-content-wrapper" style="padding-bottom: 2rem;">
+                <h3>${entry.title}</h3>
+                <div class="date">${date}</div>
+                <p>${entry.content}</p>
+                <div class="tags">${tagsHtml}</div>
+            </div>
+            <button onclick="deleteJournal(${entry.id})" class="ghost-button small" style="position: absolute; bottom: 15px; right: 15px; color: #ff4d4f; border: none; z-index: 10;">🗑️ Delete</button>
+        `;
         
         // Dynamic 3D mouse move effect
         card.addEventListener('mousemove', handleCardMouseMove);
@@ -410,5 +389,20 @@ async function deleteUser(id) {
         fetchAdminData();
     } catch (err) {
         alert('Failed to delete user');
+    }
+}
+
+// --- JOURNAL DELETE LOGIC ---
+async function deleteJournal(id) {
+    if (!confirm('Are you sure you want to delete this journal?')) return;
+    try {
+        const response = await fetch(`${API_BASE}/journal/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Basic ${credentials}` }
+        });
+        if (!response.ok) throw new Error('Failed to delete journal');
+        fetchJournals(currentPage);
+    } catch (err) {
+        alert('Failed to delete journal');
     }
 }
