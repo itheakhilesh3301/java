@@ -2,6 +2,7 @@ package com.akhilesh.journalEntry.controller;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -15,7 +16,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
 
 import com.akhilesh.journalEntry.entity.JournalEntry;
 import com.akhilesh.journalEntry.entity.User;
@@ -39,19 +42,20 @@ public class JournalEntryController {
 
 
     @GetMapping
-    public ResponseEntity<List<JournalEntry>> getAllJournalEntriesOfUser() {
+    public ResponseEntity<Page<JournalEntry>> getAllJournalEntriesOfUser(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword) {
+        
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userName = authentication.getName();
-        User user = userService.findByUserName(userName);
-        List<JournalEntry> all = user.getJournalEntries();
-        if (all != null && !all.isEmpty()) {
-            return ResponseEntity.ok(all);
-        }
-        return ResponseEntity.notFound().build();
+        
+        Page<JournalEntry> entriesPage = journalEntryService.getJournalEntriesForUser(userName, keyword, page, size);
+        return ResponseEntity.ok(entriesPage);
     }
 
     @PostMapping
-    public ResponseEntity<JournalEntry> createEntry(@RequestBody JournalEntry myEntry) {
+    public ResponseEntity<JournalEntry> createEntry(@Valid @RequestBody JournalEntry myEntry) {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             String userName = authentication.getName();
@@ -90,7 +94,7 @@ public class JournalEntryController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<JournalEntry> updateJournalById(@PathVariable Long id, @RequestBody JournalEntry newEntry) {
+    public ResponseEntity<JournalEntry> updateJournalById(@PathVariable Long id, @Valid @RequestBody JournalEntry newEntry) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String userName = authentication.getName();
         User user = userService.findByUserName(userName);

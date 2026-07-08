@@ -15,6 +15,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.akhilesh.journalEntry.entity.User;
 import com.akhilesh.journalEntry.service.UserService;
+import jakarta.validation.Valid;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @RestController
 @RequestMapping("/user")
@@ -22,6 +27,16 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
+    @GetMapping("/me")
+    public ResponseEntity<User> getCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        User user = userService.findByUserName(auth.getName());
+        if (user != null) {
+            return ResponseEntity.ok(user);
+        }
+        return ResponseEntity.notFound().build();
+    }
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -47,7 +62,7 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<String> createUser(@RequestBody User user) {
+    public ResponseEntity<String> createUser(@Valid @RequestBody User user) {
         if (user.getRoles() != null && user.getRoles().stream().anyMatch(role -> role.equalsIgnoreCase("ADMIN"))) {
             return ResponseEntity.badRequest().body("Validation Error: Cannot create an ADMIN user via this endpoint.");
         }
@@ -56,7 +71,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<String> updateUser(@PathVariable Long id, @RequestBody User user) {
+    public ResponseEntity<String> updateUser(@PathVariable Long id, @Valid @RequestBody User user) {
         if (user.getRoles() != null && user.getRoles().stream().anyMatch(role -> role.equalsIgnoreCase("ADMIN"))) {
             return ResponseEntity.badRequest().body("Validation Error: Cannot update role to ADMIN.");
         }
