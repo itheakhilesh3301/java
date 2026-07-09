@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.akhilesh.journalEntry.entity.User;
+import com.akhilesh.journalEntry.service.EmailService;
 import com.akhilesh.journalEntry.service.UserService;
 import jakarta.validation.Valid;
 
@@ -33,6 +35,9 @@ public class UserController {
 
     @Autowired
     private AuditLogRepository auditLogRepository;
+
+    @Autowired
+    private EmailService emailService;
 
     @GetMapping("/me")
     public ResponseEntity<User> getCurrentUser() {
@@ -73,6 +78,15 @@ public class UserController {
             return ResponseEntity.badRequest().body("Validation Error: Cannot create an ADMIN user via this endpoint.");
         }
         userService.saveNewUser(user);
+        
+        if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
+            emailService.sendEmail(
+                user.getEmail(),
+                "Welcome to Journal Entry App!",
+                "Hello " + user.getUsername() + ",\n\nWelcome to your new Journal! We're so excited to have you.\n\nEnjoy writing!"
+            );
+        }
+        
         return ResponseEntity.ok("User created successfully");
     }
 
